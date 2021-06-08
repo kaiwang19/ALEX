@@ -34,6 +34,7 @@
 #include <iostream>
 #include <stack>
 #include <type_traits>
+#include <iomanip>
 
 #include "alex_base.h"
 #include "alex_fanout_tree.h"
@@ -142,7 +143,8 @@ class Alex {
     // root, like a B+ tree
     // Splitting upwards can result in a better RMI, but has much more overhead
     // than splitting sideways
-    bool allow_splitting_upwards = false;
+    // bool allow_splitting_upwards = true;
+   bool allow_splitting_upwards = false;
   };
   ExperimentalParams experimental_params_;
 
@@ -537,7 +539,7 @@ class Alex {
   }
 
   // Return left-most data node
-  data_node_type* first_data_node() const {
+  public: data_node_type* first_data_node() const {
     AlexNode<T, P>* cur = root_node_;
 
     while (!cur->is_leaf_) {
@@ -547,7 +549,7 @@ class Alex {
   }
 
   // Return right-most data node
-  data_node_type* last_data_node() const {
+  public: data_node_type* last_data_node() const {
     AlexNode<T, P>* cur = root_node_;
 
     while (!cur->is_leaf_) {
@@ -558,10 +560,10 @@ class Alex {
   }
 
   // Returns minimum key in the index
-  T get_min_key() const { return first_data_node()->first_key(); }
+  public: T get_min_key() const { return first_data_node()->first_key(); }
 
   // Returns maximum key in the index
-  T get_max_key() const { return last_data_node()->last_key(); }
+  public: T get_max_key() const { return last_data_node()->last_key(); }
 
   // Link all data nodes together. Used after bulk loading.
   void link_all_data_nodes() {
@@ -579,6 +581,67 @@ class Alex {
       }
     }
   }
+
+  // Debugging
+  // Print all data nodes size and level.
+  public: void print_all_data_nodes() {
+    data_node_type* current_node = first_data_node();
+    int max_depth=current_node->level_;
+    int sum_depth=max_depth;
+    int counter=1;
+    int min_size=current_node->node_size();
+    int max_size=current_node->node_size();
+    int min_cap=current_node->data_capacity_;
+    int max_cap=current_node->data_capacity_;
+    int min_key_num=current_node->num_keys_;
+    int max_key_num=current_node->num_keys_;
+    std::cout << "******** Data Node Details ********" 
+            << std::endl;  
+    while(current_node->next_leaf_ != nullptr)
+    {
+      // std::cout << "Leaf node at Level " << current_node->level_ 
+      //     << " with size " << current_node->node_size()
+      //     << std::endl;  
+      current_node = current_node->next_leaf_;
+
+      if(current_node->level_ > max_depth)
+      {max_depth = current_node->level_;}
+      sum_depth += current_node->level_;
+      counter++;
+      if(current_node->node_size() > max_size)
+      {max_size = current_node->node_size();}
+      if(current_node->node_size() < min_size)
+      {min_size = current_node->node_size();}
+
+      if(current_node->data_capacity_ > max_cap)
+      {max_cap = current_node->data_capacity_;}
+      if(current_node->data_capacity_ < min_cap)
+      {min_cap = current_node->data_capacity_;}
+      
+      if(current_node->num_keys_ > max_key_num)
+      {max_key_num = current_node->num_keys_;}
+      if(current_node->num_keys_ < min_key_num)
+      {min_key_num = current_node->num_keys_;}
+    }
+    std::cout << "******** Data Node Summary ********" 
+            << std::endl;  
+
+    std::cout << std::fixed;
+    std::cout << std::setprecision(4); // iomanip
+    std::cout << "For " << counter << " data nodes: "
+          << "avg_depth " << (float)((double)sum_depth/(double)counter)
+          << " max_depth " << max_depth
+          << " min_DN_size " << min_size
+          << " max_DN_size " << max_size
+          << " min_DN_cap " << min_cap
+          << " max_DN_cap " << max_cap
+          << " min_DN_key_num " << min_key_num
+          << " max_DN_key_num " << max_key_num
+          << std::endl;  
+    std::cout << "******** The End of Data Node Details. ********" 
+            << std::endl;  
+  }
+
 
   // Link the new data nodes together when old data node is replaced by two new
   // data nodes.
@@ -655,6 +718,8 @@ class Alex {
     T max_key = values[num_keys - 1].first;
     root_node_->model_.a_ = 1.0 / (max_key - min_key);
     root_node_->model_.b_ = -1.0 * min_key * root_node_->model_.a_;
+    std::cout << "Build temporary root model Finished! " 
+            << std::endl;
 
     // Compute cost of root node
     LinearModel<T> root_data_node_model;
@@ -665,10 +730,14 @@ class Alex {
         values, num_keys, data_node_type::kInitDensity_,
         params_.expected_insert_frac, &root_data_node_model,
         params_.approximate_cost_computation, &stats);
+    std::cout << "Compute cost of root node Finished! " 
+            << std::endl;
 
     // Recursively bulk load
     bulk_load_node(values, num_keys, root_node_, num_keys,
                    &root_data_node_model);
+    std::cout << "Recursively bulk load Finished! " 
+            << std::endl;
 
     if (root_node_->is_leaf_) {
       static_cast<data_node_type*>(root_node_)
@@ -678,8 +747,16 @@ class Alex {
     }
 
     create_superroot();
+    std::cout << "create_superroot Finished! " 
+            << std::endl;
+
     update_superroot_key_domain();
+    std::cout << "update_superroot_key_domain Finished! " 
+            << std::endl;
+
     link_all_data_nodes();
+    std::cout << "link_all_data_nodes Finished! " 
+            << std::endl;
   }
 
  private:
@@ -726,11 +803,19 @@ class Alex {
   void bulk_load_node(const V values[], int num_keys, AlexNode<T, P>*& node,
                       int total_keys,
                       const LinearModel<T>* data_node_model = nullptr) {
+    std::cout << " num_keys " << num_keys
+    << " derived_params_.max_data_node_slots " <<  derived_params_.max_data_node_slots
+    << " node->cost_ " << node->cost_
+    << " node->model_.a_ " << node->model_.a_
+    << std::endl;
+      
     // Automatically convert to data node when it is impossible to be better
     // than current cost
     if (num_keys <= derived_params_.max_data_node_slots *
                         data_node_type::kMinDensity_ &&
         (node->cost_ < kNodeLookupsWeight || node->model_.a_ == 0)) {
+      std::cout << "bulk_load_node Match! " 
+            << std::endl;
       stats_.num_data_nodes++;
       auto data_node = new (data_node_allocator().allocate(1))
           data_node_type(node->level_, derived_params_.max_data_node_slots,
@@ -742,6 +827,8 @@ class Alex {
       node = data_node;
       return;
     }
+    std::cout << "Automatically convert to data node Finished! num_keys " << num_keys << " total_keys " << total_keys
+            << std::endl;
 
     // Use a fanout tree to determine the best way to divide the key space into
     // child nodes
@@ -762,6 +849,8 @@ class Alex {
     }
     int best_fanout_tree_depth = best_fanout_stats.first;
     double best_fanout_tree_cost = best_fanout_stats.second;
+    std::cout << "Using a fanout tree Finished! " 
+            << std::endl;
 
     // Decide whether this node should be a model node or data node
     if (best_fanout_tree_cost < node->cost_ ||
@@ -832,6 +921,7 @@ class Alex {
         cur += repeats;
       }
 
+
       delete_node(node);
       node = model_node;
     } else {
@@ -846,6 +936,8 @@ class Alex {
       delete_node(node);
       node = data_node;
     }
+    std::cout << "Decide node type Finished! " 
+            << std::endl;
   }
 
   // Caller needs to set the level, duplication factor, and neighbor pointers of
@@ -1163,8 +1255,7 @@ class Alex {
         if (experimental_params_.splitting_policy_method == 0 || fail >= 2) {
           // always split in 2. No extra work required here
         } else if (experimental_params_.splitting_policy_method == 1) {
-          // decide between no split (i.e., expand and retrain) or splitting in
-          // 2
+          // decide between no split (i.e., expand and retrain) or splitting in 2
           fanout_tree_depth = fanout_tree::find_best_fanout_existing_node<T, P>(
               parent, bucketID, stats_.num_keys, used_fanout_tree_nodes, 2);
         } else if (experimental_params_.splitting_policy_method == 2) {
@@ -1191,7 +1282,8 @@ class Alex {
           leaf->expected_avg_shifts_ = tree_node.expected_avg_shifts;
           leaf->reset_stats();
           stats_.num_expand_and_retrains++;
-        } else {
+        } 
+        else {
           // split data node: always try to split sideways/upwards, only split
           // downwards if necessary
           bool reuse_model = (fail == 3);
@@ -1206,11 +1298,11 @@ class Alex {
               split_upwards(key, stop_propagation_level, traversal_path,
                             reuse_model, &parent);
             }
-          } else {
+          } 
+          else {
             // either split sideways or downwards
             bool should_split_downwards =
-                (parent->num_children_ * best_fanout /
-                         (1 << leaf->duplication_factor_) >
+                (parent->num_children_ * best_fanout / (1 << leaf->duplication_factor_) >
                      derived_params_.max_fanout ||
                  parent->level_ == superroot_->level_);
             if (should_split_downwards) {

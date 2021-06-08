@@ -16,6 +16,7 @@ include_directories(src/core)
 
 add_executable(example src/examples/main.cpp)
 add_executable(benchmark src/benchmark/main.cpp)
+add_executable(benchmark64bit src/benchmark/main64bit.cpp)
 
 # Download and unpack googletest at configure time
 configure_file(CMakeLists.txt.in googletest-download/CMakeLists.txt)

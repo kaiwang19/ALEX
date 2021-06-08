@@ -13,8 +13,8 @@
 #include "utils.h"
 
 // Modify these if running your own workload
-#define KEY_TYPE double
-#define PAYLOAD_TYPE double
+#define KEY_TYPE uint64_t
+#define PAYLOAD_TYPE uint64_t
 
 /*
  * Required flags:
@@ -178,7 +178,7 @@ int main(int argc, char* argv[]) {
 
   // debugging
   auto stats = index.get_stats();
-  printStat_Double(stats);
+  printStat_Int64(stats);
   index.print_all_data_nodes();
   std::cout << "The maximum key is : " << index.get_max_key() << ". The minimum key is : " << index.get_min_key() 
             << std::endl;
