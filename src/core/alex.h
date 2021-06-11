@@ -587,8 +587,8 @@ class Alex {
   public: void print_all_data_nodes() {
     data_node_type* current_node = first_data_node();
     int max_depth=current_node->level_;
-    int sum_depth=max_depth;
-    int counter=1;
+    int sum_depth=current_node->level_*current_node->num_keys_;
+    int key_counter=current_node->num_keys_;
     int min_size=current_node->node_size();
     int max_size=current_node->node_size();
     int min_cap=current_node->data_capacity_;
@@ -606,8 +606,8 @@ class Alex {
 
       if(current_node->level_ > max_depth)
       {max_depth = current_node->level_;}
-      sum_depth += current_node->level_;
-      counter++;
+      sum_depth += current_node->level_*current_node->num_keys_;
+      key_counter+=current_node->num_keys_;
       if(current_node->node_size() > max_size)
       {max_size = current_node->node_size();}
       if(current_node->node_size() < min_size)
@@ -628,11 +628,11 @@ class Alex {
 
     std::cout << std::fixed;
     std::cout << std::setprecision(4); // iomanip
-    std::cout << "For " << counter << " data nodes: "
-          << "avg_depth " << (float)((double)sum_depth/(double)counter)
+    std::cout << "For " << key_counter << " keys: "
+          << "avg_depth " << (float)((double)sum_depth/(double)key_counter)
           << " max_depth " << max_depth
-          << " min_DN_size " << min_size
-          << " max_DN_size " << max_size
+          // << " min_DN_size " << min_size
+          // << " max_DN_size " << max_size
           << " min_DN_cap " << min_cap
           << " max_DN_cap " << max_cap
           << " min_DN_key_num " << min_key_num
