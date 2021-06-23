@@ -83,7 +83,7 @@ int main(int argc, char* argv[]) {
   int batch_no = 0;
   PAYLOAD_TYPE sum = 0;
   std::cout << std::scientific;
-  std::cout << std::setprecision(3);
+  std::cout << std::setprecision(4);
   while (true) {
     batch_no++;
 

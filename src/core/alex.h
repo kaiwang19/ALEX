@@ -34,7 +34,6 @@
 #include <iostream>
 #include <stack>
 #include <type_traits>
-#include <iomanip>
 
 #include "alex_base.h"
 #include "alex_fanout_tree.h"
@@ -626,8 +625,6 @@ class Alex {
     std::cout << "******** Data Node Summary ********" 
             << std::endl;  
 
-    std::cout << std::fixed;
-    std::cout << std::setprecision(4); // iomanip
     std::cout << "For " << key_counter << " keys: "
           << "avg_depth " << (float)((double)sum_depth/(double)key_counter)
           << " max_depth " << max_depth
