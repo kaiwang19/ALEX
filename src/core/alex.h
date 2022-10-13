@@ -83,25 +83,28 @@ class Alex {
     // For simplicity, operations are either point lookups ("reads") or inserts
     // ("writes)
     // i.e., 0 means we expect a read-only workload, 1 means write-only
-    double expected_insert_frac = 1;
+    // double expected_insert_frac = 1; // origin
+    // double expected_insert_frac = 0; // suggested for bulk load by Jialing Ding
+    double expected_insert_frac = 1.0; // more test
+
     // Maximum node size, in bytes. By default, 16MB.
-    // Higher values result in better average throughput, but worse tail/max
-    // insert latency
-    int max_node_size = 1 << 24;
+    // Higher values result in better average throughput, but worse tail/max insert latency
+    int max_node_size = MVALEX_MAX_SIZE; 
+
     // Approximate model computation: bulk load faster by using sampling to
     // train models
     bool approximate_model_computation = true;
     // Approximate cost computation: bulk load faster by using sampling to
     // compute cost
-    bool approximate_cost_computation = false;
+    bool approximate_cost_computation = false; // origin
+    // bool approximate_cost_computation = true; // try
   };
   Params params_;
 
   /* Setting max node size automatically changes these parameters */
   struct DerivedParams {
-    // The defaults here assume the default max node size of 16MB
-    int max_fanout = 1 << 21;  // assumes 8-byte pointers
-    int max_data_node_slots = (1 << 24) / sizeof(V);
+    int max_fanout = (MVALEX_MAX_SIZE) / 8;  // assumes 8-byte pointers
+    int max_data_node_slots = (MVALEX_MAX_SIZE) / sizeof(V);
   };
   DerivedParams derived_params_;
 
@@ -194,15 +197,20 @@ class Alex {
 
   // At least this many keys must be outside the domain before a domain
   // expansion is triggered.
-  static const int kMinOutOfDomainKeys = 5;
+  // static const int kMinOutOfDomainKeys = 5;
+  static const int kMinOutOfDomainKeys = 1;
+  
   // After this many keys are outside the domain, a domain expansion must be
   // triggered.
-  static const int kMaxOutOfDomainKeys = 1000;
+  // static const int kMaxOutOfDomainKeys = 1000;
+  static const int kMaxOutOfDomainKeys = 1;
+
   // When the number of max out-of-domain (OOD) keys is between the min and
   // max, expand the domain if the number of OOD keys is greater than the
   // expected number of OOD due to randomness by greater than the tolereance
   // factor.
-  static const int kOutOfDomainToleranceFactor = 2;
+  // static const int kOutOfDomainToleranceFactor = 2;
+  static const int kOutOfDomainToleranceFactor = 0;
 
   Compare key_less_ = Compare();
   Alloc allocator_ = Alloc();
@@ -392,8 +400,7 @@ class Alex {
 // Return the data node that contains the key (if it exists).
 // Also optionally return the traversal path to the data node.
 // traversal_path should be empty when calling this function.
-// The returned traversal path begins with superroot and ends with the data
-// node's parent.
+// The returned traversal path begins with superroot and ends with the data node's parent.
 #if ALEX_SAFE_LOOKUP
   forceinline data_node_type* get_leaf(
       T key, std::vector<TraversalNode>* traversal_path = nullptr) const {
@@ -581,6 +588,13 @@ class Alex {
     }
   }
 
+  public: void print_istats_()
+  {
+    ALEX_PRINT(" istats_: key_domain_["<< istats_.key_domain_min_ << ","<<istats_.key_domain_max_ << "],"
+    << " num_keys_outside_domain: {"<< istats_.num_keys_below_key_domain << ","<<istats_.num_keys_above_key_domain << "}."
+    );
+  }
+
   // Debugging
   // Print all data nodes size and level.
   public: void print_all_data_nodes() {
@@ -588,8 +602,9 @@ class Alex {
     int max_depth=current_node->level_;
     int sum_depth=current_node->level_*current_node->num_keys_;
     int key_counter=current_node->num_keys_;
-    int min_size=current_node->node_size();
-    int max_size=current_node->node_size();
+    long long int min_size=current_node->data_size();
+    long long int max_size=current_node->data_size();
+    std::vector<long long int> size_vector = {current_node->data_size()};
     int min_cap=current_node->data_capacity_;
     int max_cap=current_node->data_capacity_;
     int min_key_num=current_node->num_keys_;
@@ -715,7 +730,9 @@ class Alex {
     T max_key = values[num_keys - 1].first;
     root_node_->model_.a_ = 1.0 / (max_key - min_key);
     root_node_->model_.b_ = -1.0 * min_key * root_node_->model_.a_;
-    std::cout << "Build temporary root model Finished! " 
+    std::cout << "Build temporary rough root model ->" 
+            << " root_node_->model_.a_ " << root_node_->model_.a_
+            << " root_node_->model_.b_ " << root_node_->model_.b_
             << std::endl;
 
     // Compute cost of root node
@@ -727,14 +744,14 @@ class Alex {
         values, num_keys, data_node_type::kInitDensity_,
         params_.expected_insert_frac, &root_data_node_model,
         params_.approximate_cost_computation, &stats);
-    std::cout << "Compute cost of root node Finished! " 
+    std::cout << "Compute cost of root node " << root_node_->cost_
             << std::endl;
 
     // Recursively bulk load
     bulk_load_node(values, num_keys, root_node_, num_keys,
                    &root_data_node_model);
-    std::cout << "Recursively bulk load Finished! " 
-            << std::endl;
+    // std::cout << "Recursively bulk load Finished! " 
+    //         << std::endl;
 
     if (root_node_->is_leaf_) {
       static_cast<data_node_type*>(root_node_)
@@ -744,16 +761,16 @@ class Alex {
     }
 
     create_superroot();
-    std::cout << "create_superroot Finished! " 
-            << std::endl;
+    // std::cout << "create_superroot Finished! " 
+    //         << std::endl;
 
     update_superroot_key_domain();
-    std::cout << "update_superroot_key_domain Finished! " 
-            << std::endl;
+    // std::cout << "update_superroot_key_domain Finished! " 
+    //         << std::endl;
 
     link_all_data_nodes();
-    std::cout << "link_all_data_nodes Finished! " 
-            << std::endl;
+    // std::cout << "link_all_data_nodes Finished! " 
+    //         << std::endl;
   }
 
  private:
@@ -795,24 +812,21 @@ class Alex {
   // Assumes node has already been trained to output [0, 1), has cost.
   // Figures out the optimal partitioning of children.
   // node is trained as if it's a model node.
-  // data_node_model is what the node's model would be if it were a data node of
-  // dense keys.
+  // data_node_model is what the node's model would be if it were a data node of dense keys.
   void bulk_load_node(const V values[], int num_keys, AlexNode<T, P>*& node,
                       int total_keys,
                       const LinearModel<T>* data_node_model = nullptr) {
-    std::cout << " num_keys " << num_keys
-    << " derived_params_.max_data_node_slots " <<  derived_params_.max_data_node_slots
-    << " node->cost_ " << node->cost_
-    << " node->model_.a_ " << node->model_.a_
-    << std::endl;
+    // std::cout << " num_keys " << num_keys
+    // << " derived_params_.max_data_node_slots " <<  derived_params_.max_data_node_slots
+    // << " node->cost_ " << node->cost_
+    // << " node->model_.a_ " << node->model_.a_
+    // << std::endl;
       
     // Automatically convert to data node when it is impossible to be better
     // than current cost
     if (num_keys <= derived_params_.max_data_node_slots *
                         data_node_type::kMinDensity_ &&
         (node->cost_ < kNodeLookupsWeight || node->model_.a_ == 0)) {
-      std::cout << "bulk_load_node Match! " 
-            << std::endl;
       stats_.num_data_nodes++;
       auto data_node = new (data_node_allocator().allocate(1))
           data_node_type(node->level_, derived_params_.max_data_node_slots,
@@ -820,22 +834,34 @@ class Alex {
       data_node->bulk_load(values, num_keys, data_node_model,
                            params_.approximate_model_computation);
       data_node->cost_ = node->cost_;
+      std::cout << " ++++ bulk_load_node data node " 
+                << " level " << data_node->level_
+                << " keys "<< num_keys 
+                << " cost " << node->cost_ 
+                << " data_node_model->a " << data_node_model->a_
+                << " b " << data_node_model->b_
+                << " node->a " << data_node->model_.a_
+                << " b " << data_node->model_.b_
+                << " dup " << unsigned(node->duplication_factor_)
+                << std::endl;
       delete_node(node);
       node = data_node;
       return;
     }
-    std::cout << "Automatically convert to data node Finished! num_keys " << num_keys << " total_keys " << total_keys
-            << std::endl;
+    // std::cout << "Automatically convert to data node Finished! num_keys " << num_keys << " total_keys " << total_keys
+    //         << std::endl;
 
     // Use a fanout tree to determine the best way to divide the key space into
     // child nodes
     std::vector<fanout_tree::FTNode> used_fanout_tree_nodes;
     std::pair<int, double> best_fanout_stats;
     if (experimental_params_.fanout_selection_method == 0) {
+      int max_data_node_keys = static_cast<int>(
+          derived_params_.max_data_node_slots * data_node_type::kMinDensity_);
       best_fanout_stats = fanout_tree::find_best_fanout_bottom_up<T, P>(
           values, num_keys, node, total_keys, used_fanout_tree_nodes,
-          derived_params_.max_fanout, params_.expected_insert_frac,
-          params_.approximate_model_computation,
+          derived_params_.max_fanout, max_data_node_keys,
+          params_.expected_insert_frac, params_.approximate_model_computation,
           params_.approximate_cost_computation, key_less_);
     } else if (experimental_params_.fanout_selection_method == 1) {
       best_fanout_stats = fanout_tree::find_best_fanout_top_down<T, P>(
@@ -846,7 +872,9 @@ class Alex {
     }
     int best_fanout_tree_depth = best_fanout_stats.first;
     double best_fanout_tree_cost = best_fanout_stats.second;
-    std::cout << "Using a fanout tree Finished! " 
+    std::cout << "\nUsing a fanout tree - " 
+            << " best_fanout_tree_depth " << best_fanout_tree_depth
+            << " best_fanout_tree_cost " << best_fanout_tree_cost
             << std::endl;
 
     // Decide whether this node should be a model node or data node
@@ -868,10 +896,12 @@ class Alex {
                                        derived_params_.max_data_node_slots)) +
             1;
         used_fanout_tree_nodes.clear();
+        int max_data_node_keys = static_cast<int>(
+            derived_params_.max_data_node_slots * data_node_type::kMinDensity_);
         fanout_tree::compute_level<T, P>(
             values, num_keys, node, total_keys, used_fanout_tree_nodes,
-            best_fanout_tree_depth, params_.expected_insert_frac,
-            params_.approximate_model_computation,
+            best_fanout_tree_depth, max_data_node_keys,
+            params_.expected_insert_frac, params_.approximate_model_computation,
             params_.approximate_cost_computation);
       }
       int fanout = 1 << best_fanout_tree_depth;
@@ -880,6 +910,9 @@ class Alex {
       model_node->num_children_ = fanout;
       model_node->children_ =
           new (pointer_allocator().allocate(fanout)) AlexNode<T, P>*[fanout];
+
+      std::cout << "\nWhen the model node is out, Instantiate all the child nodes and recurse.\n"
+            << std::endl;
 
       // Instantiate all the child nodes and recurse
       int cur = 0;
@@ -897,6 +930,20 @@ class Alex {
             (right_value - node->model_.b_) / node->model_.a_;
         child_node->model_.a_ = 1.0 / (right_boundary - left_boundary);
         child_node->model_.b_ = -child_node->model_.a_ * left_boundary;
+
+        // std::cout << " cccc child" 
+        //     << " cur " << cur
+        //     << " fanout " << fanout
+        //     << " left_value " << left_value
+        //     << " right_value " << right_value
+        //     << " left_bound " << left_boundary
+        //     << " right_bound " << right_boundary
+        //     << " node_a " << node->model_.a_
+        //     << " node_b " << node->model_.b_
+        //     << " child_a " << child_node->model_.a_
+        //     << " child_b " << child_node->model_.b_
+        //     << std::endl;
+
         model_node->children_[cur] = child_node;
         LinearModel<T> child_data_node_model(tree_node.a, tree_node.b);
         bulk_load_node(values + tree_node.left_boundary,
@@ -917,8 +964,12 @@ class Alex {
         }
         cur += repeats;
       }
-
-
+      std::cout << " $$$$ bulk_load_node model node" 
+            << " level " << model_node->level_
+            << " num_children " << model_node->num_children_
+            << " a " << model_node->model_.a_
+            << " b " << model_node->model_.b_
+            << std::endl;
       delete_node(node);
       node = model_node;
     } else {
@@ -930,11 +981,19 @@ class Alex {
       data_node->bulk_load(values, num_keys, data_node_model,
                            params_.approximate_model_computation);
       data_node->cost_ = node->cost_;
+      std::cout << " ++++ bulk_load_node data node (with the fanout tree) " 
+                << " level " << data_node->level_
+                << " keys "<< num_keys 
+                << " cost " << node->cost_ 
+                << " data_node_model->a " << data_node_model->a_
+                << " b " << data_node_model->b_
+                << " node->a " << data_node->model_.a_
+                << " b " << data_node->model_.b_
+                << " dup " << unsigned(node->duplication_factor_)
+                << std::endl;
       delete_node(node);
       node = data_node;
     }
-    std::cout << "Decide node type Finished! " 
-            << std::endl;
   }
 
   // Caller needs to set the level, duplication factor, and neighbor pointers of
@@ -1206,6 +1265,15 @@ class Alex {
   std::pair<Iterator, bool> insert(const T& key, const P& payload) {
     // If enough keys fall outside the key domain, expand the root to expand the
     // key domain
+  // std::cout << " ==== inside inserting\n"
+  //           << " key_domain_min_ " << istats_.key_domain_min_
+  //           << " key_domain_max_ " << istats_.key_domain_max_
+  //           << " num_keys_above_key_domain " << istats_.num_keys_above_key_domain
+  //           << " num_keys_below_key_domain " << istats_.num_keys_below_key_domain
+  //           << " num_keys_at_last_right_domain_resize " << istats_.num_keys_at_last_right_domain_resize
+  //           << " num_keys_at_last_left_domain_resize " << istats_.num_keys_at_last_left_domain_resize
+  //           << std::endl;
+
     if (key > istats_.key_domain_max_) {
       istats_.num_keys_above_key_domain++;
       if (should_expand_right()) {
@@ -1218,12 +1286,20 @@ class Alex {
       }
     }
 
+
     data_node_type* leaf = get_leaf(key);
 
     // Nonzero fail flag means that the insert did not happen
     std::pair<int, int> ret = leaf->insert(key, payload);
     int fail = ret.first;
     int insert_pos = ret.second;
+
+    std::cout << " ==== try insert "
+          << " key " << key
+          << " fail " << fail
+          << " insert_pos " << insert_pos
+          << std::endl;
+
     if (fail == -1) {
       // Duplicate found and duplicates not allowed
       return {Iterator(leaf, insert_pos), false};
@@ -1242,11 +1318,15 @@ class Alex {
 
         if (parent == superroot_) {
           update_superroot_key_domain();
+          // ALEX_PRINT("parent == superroot_");
+          // superroot_->print();
         }
         int bucketID = parent->model_.predict(key);
         bucketID = std::min<int>(std::max<int>(bucketID, 0),
                                  parent->num_children_ - 1);
         std::vector<fanout_tree::FTNode> used_fanout_tree_nodes;
+
+        std::cout <<"deal with fails "<< std::endl;
 
         int fanout_tree_depth = 1;
         if (experimental_params_.splitting_policy_method == 0 || fail >= 2) {
@@ -1266,6 +1346,10 @@ class Alex {
             std::chrono::duration_cast<std::chrono::nanoseconds>(
                 std::chrono::high_resolution_clock::now() - start_time)
                 .count();
+
+        std::cout << " ==== after fail "
+          << " fanout_tree_depth " << fanout_tree_depth
+          << std::endl;
 
         if (fanout_tree_depth == 0) {
           // expand existing data node and retrain model
@@ -1305,9 +1389,19 @@ class Alex {
             if (should_split_downwards) {
               parent = split_downwards(parent, bucketID, fanout_tree_depth,
                                        used_fanout_tree_nodes, reuse_model);
+              // ALEX_PRINT("\n split_downwards parent" << parent->num_children_);
+              // for(int i=0; i<parent->num_children_; i++)
+              // {
+              //   static_cast<data_node_type*>(parent->children_[i])->print(true);
+              // }
             } else {
               split_sideways(parent, bucketID, fanout_tree_depth,
                              used_fanout_tree_nodes, reuse_model);
+              // ALEX_PRINT("\n split_sideways parent" << parent->num_children_);
+              // for(int i=0; i<parent->num_children_; i++)
+              // {
+              //   static_cast<data_node_type*>(parent->children_[i])->print(true);
+              // }
             }
           }
           leaf = static_cast<data_node_type*>(parent->get_child_node(key));
@@ -1430,6 +1524,8 @@ class Alex {
   // a new root node.
   void expand_root(T key, bool expand_left) {
     auto root = static_cast<model_node_type*>(root_node_);
+    ALEX_PRINT("expand_root");
+    print_istats_();
 
     // Find the new bounds of the key domain.
     // Need to be careful to avoid overflows in the key type.
@@ -1670,6 +1766,15 @@ class Alex {
         1.0 / (right_boundary_value - left_boundary_value) * fanout;
     new_node->model_.b_ = -new_node->model_.a_ * left_boundary_value;
 
+
+    // std::cout << " $$$$ After split_downwards " 
+    //         << " level_ " << leaf->level_
+    //         << " duplication_factor_ " << unsigned(new_node->duplication_factor_)
+    //         << " num_children_ " << new_node->num_children_
+    //         << " model_.a_ " << new_node->model_.a_
+    //         << " model_.b_ " << new_node->model_.b_
+    //         << std::endl;
+
     // Create new data nodes
     if (used_fanout_tree_nodes.empty()) {
       assert(fanout_tree_depth == 1);
@@ -1705,6 +1810,10 @@ class Alex {
 
     int fanout = 1 << fanout_tree_depth;
     int repeats = 1 << leaf->duplication_factor_;
+    std::cout << " ==== split_sideways "
+            << " fanout " << fanout
+            << " repeats " << repeats
+            << std::endl;
     if (fanout > repeats) {
       // Expand the pointer array in the parent model node if there are not
       // enough redundant pointers
@@ -1720,13 +1829,22 @@ class Alex {
 
     if (used_fanout_tree_nodes.empty()) {
       assert(fanout_tree_depth == 1);
+      std::cout << " ==== create_two_new_data_nodes with empty used_fanout_tree_nodes"
+            << " fanout " << fanout
+            << " repeats " << repeats
+            << std::endl;
       create_two_new_data_nodes(
-          leaf, parent, std::max(fanout_tree_depth,
-                                 static_cast<int>(leaf->duplication_factor_)),
+          leaf, parent,
+          std::max(fanout_tree_depth,
+                   static_cast<int>(leaf->duplication_factor_)),
           reuse_model, start_bucketID);
     } else {
       // Extra duplication factor is required when there are more redundant
       // pointers than necessary
+      std::cout << " ==== create_two_new_data_nodes with more redundant pointers"
+            << " fanout " << fanout
+            << " repeats " << repeats
+            << std::endl;
       int extra_duplication_factor =
           std::max(0, leaf->duplication_factor_ - fanout_tree_depth);
       create_new_data_nodes(leaf, parent, fanout_tree_depth,

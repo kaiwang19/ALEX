@@ -65,7 +65,6 @@ class LinearModel {
  public:
   double a_ = 0;  // slope
   double b_ = 0;  // intercept
-
   LinearModel() = default;
   LinearModel(double a, double b) : a_(a), b_(b) {}
   explicit LinearModel(const LinearModel& other) : a_(other.a_), b_(other.b_) {}
@@ -76,11 +75,21 @@ class LinearModel {
   }
 
   inline int predict(T key) const {
+      // std::cout << " ==== predict ->"
+      //       << " key " << key
+      //       << " a_ " << a_
+      //       << " b_ " << b_
+      //       << " pred_pos " << static_cast<int>(a_ * static_cast<double>(key) + b_)
+      //       << std::endl;
     return static_cast<int>(a_ * static_cast<double>(key) + b_);
   }
 
   inline double predict_double(T key) const {
     return a_ * static_cast<double>(key) + b_;
+  }
+
+  inline std::string model_str() const{
+    return "model_a_" + std::to_string(a_) + " b_" + std::to_string(b_); 
   }
 };
 
@@ -101,6 +110,21 @@ class LinearModelBuilder {
     x_max_ = std::max<T>(x, x_max_);
     y_min_ = std::min<double>(y, y_min_);
     y_max_ = std::max<double>(y, y_max_);
+
+    // std::cout << " ==== Model add: "
+    //           << " x " << x
+    //           << " y " << y
+    //           << " count_ " << count_
+    //           << " x_sum_ " << x_sum_
+    //           << " y_sum_ " << y_sum_
+    //           << " xx_sum_ " << xx_sum_
+    //           << " xy_sum_ " << xy_sum_
+    //           // << " \n x_min_ " << x_min_
+    //           // << " x_max_ " << x_max_
+    //           // << " y_min_ " << y_min_
+    //           // << " y_max_ " << y_max_
+    //           << std::endl;
+  
   }
 
   void build() {
@@ -124,6 +148,16 @@ class LinearModelBuilder {
         (y_sum_ - static_cast<long double>(slope) * x_sum_) / count_);
     model_->a_ = slope;
     model_->b_ = intercept;
+
+    // std::cout << " ====\n Model build: "
+    //           << " count_ " << count_
+    //           << " slope " << slope
+    //           << " intercept " << intercept
+    //           << " \n x_sum_ " << x_sum_
+    //           << " y_sum_ " << y_sum_
+    //           << " xx_sum_ " << xx_sum_
+    //           << " xy_sum_ " << xy_sum_
+    //           << std::endl;
 
     // If floating point precision errors, fit spline
     if (model_->a_ <= 0) {
@@ -179,6 +213,7 @@ inline int count_ones(uint64_t value) {
 // Get the offset of a bit in a bitmap.
 // word_id is the word id of the bit in a bitmap
 // bit is the word that contains the bit
+// 2^6 = 64 bit
 inline int get_offset(int word_id, uint64_t bit) {
   return (word_id << 6) + count_ones(bit - 1);
 }
@@ -186,12 +221,17 @@ inline int get_offset(int word_id, uint64_t bit) {
 /*** Cost model weights ***/
 
 // Intra-node cost weights
-double kExpSearchIterationsWeight = 20;
-double kShiftsWeight = 0.5;
+// double kExpSearchIterationsWeight = 20;
+// double kShiftsWeight = 0.5;
+double kExpSearchIterationsWeight = 10;
+double kShiftsWeight = 1;
 
 // TraverseToLeaf cost weights
-double kNodeLookupsWeight = 20;
-double kModelSizeWeight = 5e-7;
+// double kNodeLookupsWeight = 20;
+// double kModelSizeWeight = 5e-7;
+double kNodeLookupsWeight = 10;
+double kModelSizeWeight = 1e-6;
+
 
 /*** Stat Accumulators ***/
 

@@ -1,0 +1,3 @@
+"C:\Program Files\CMake\bin\cmake.exe" -E rm -f CMakeFiles\example_double.dir/objects.a
+D:\program\mingw-w64\mingw64\bin\ar.exe cr CMakeFiles\example_double.dir/objects.a @CMakeFiles\example_double.dir\objects1.rsp
+D:\program\mingw-w64\mingw64\bin\g++.exe -g -O3 -march=native -Wall -Wextra -g -Wl,--whole-archive CMakeFiles\example_double.dir/objects.a -Wl,--no-whole-archive -o example_double.exe -Wl,--out-implib,libexample_double.dll.a -Wl,--major-image-version,0,--minor-image-version,0 @CMakeFiles\example_double.dir\linklibs.rsp

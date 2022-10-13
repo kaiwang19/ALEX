@@ -1,0 +1,116 @@
+ check max_data_node_slots 4 max_fanout 8 KEY_TYPE 8 PAYLOAD_TYPE 8
+Build temporary rough root model -> root_node_->model_.a_ 0.166667 root_node_->model_.b_ -0
+ build_model with 4 keys. 
+compute_expected_cost  avg_exp_search 0 avg_shifts 1 cost 0.05
+Compute cost of root node 0.05
+ ==== Compute_level -> level 1 fanout 2 a 0.333333 b -0
+ build_model with 2 keys. 
+compute_expected_cost  avg_exp_search 0 avg_shifts 0.5 cost 0.025
+Compute_level -> total_cost 0.0125 node_cost 0.025 left_bound 0 right_bound 2 num_keys 4
+ build_model with 2 keys. 
+compute_expected_cost  avg_exp_search 0 avg_shifts 0.5 cost 0.025
+Compute_level -> total_cost 0.025 node_cost 0.025 left_bound 2 right_bound 4 num_keys 4
+Compute_level -> total_cost 10.0254 traversal_cost 10.0004 kNodeLookupsWeight 10 kModelSizeWeight 1e-06 sizeof(AlexDataNode<T, P>) 208 sizeof(void*) 8 fanout 2 total_keys 4 num_keys 4
+ ==== Compute_level -> level 2 fanout 4 a 0.666667 b -0
+ build_model with 1 keys. 
+compute_expected_cost  avg_exp_search 0 avg_shifts 0 cost 0
+Compute_level -> total_cost 0 node_cost 0 left_bound 0 right_bound 1 num_keys 4
+ build_model with 1 keys. 
+compute_expected_cost  avg_exp_search 0 avg_shifts 0 cost 0
+Compute_level -> total_cost 0 node_cost 0 left_bound 1 right_bound 2 num_keys 4
+ build_model with 1 keys. 
+compute_expected_cost  avg_exp_search 0 avg_shifts 0 cost 0
+Compute_level -> total_cost 0 node_cost 0 left_bound 2 right_bound 3 num_keys 4
+ build_model with 1 keys. 
+compute_expected_cost  avg_exp_search 0 avg_shifts 0 cost 0
+Compute_level -> total_cost 0 node_cost 0 left_bound 3 right_bound 4 num_keys 4
+Compute_level -> total_cost 10.0009 traversal_cost 10.0009 kNodeLookupsWeight 10 kModelSizeWeight 1e-06 sizeof(AlexDataNode<T, P>) 208 sizeof(void*) 8 fanout 4 total_keys 4 num_keys 4
+ ==== Compute_level -> level 3 fanout 8 a 1.33333 b -0
+ build_model with 1 keys. 
+compute_expected_cost  avg_exp_search 0 avg_shifts 0 cost 0
+Compute_level -> total_cost 0 node_cost 0 left_bound 0 right_bound 1 num_keys 4
+ build_model with 1 keys. 
+compute_expected_cost  avg_exp_search 0 avg_shifts 0 cost 0
+Compute_level -> total_cost 0 node_cost 0 left_bound 1 right_bound 2 num_keys 4
+ build_model with 1 keys. 
+compute_expected_cost  avg_exp_search 0 avg_shifts 0 cost 0
+Compute_level -> total_cost 0 node_cost 0 left_bound 2 right_bound 3 num_keys 4
+ build_model with 1 keys. 
+compute_expected_cost  avg_exp_search 0 avg_shifts 0 cost 0
+Compute_level -> total_cost 0 node_cost 0 left_bound 3 right_bound 4 num_keys 4
+Compute_level -> total_cost 10.0017 traversal_cost 10.0017 kNodeLookupsWeight 10 kModelSizeWeight 1e-06 sizeof(AlexDataNode<T, P>) 208 sizeof(void*) 8 fanout 8 total_keys 4 num_keys 4
+
+Using a fanout tree -  best_fanout_tree_depth 2 best_fanout_tree_cost 10.0009
+
+When the model node is out, Instantiate all the child nodes and recurse.
+
+ ++++ bulk_load_node data node  level 1 keys 1 cost 0 data_node_model->a 0 b 0 node->a 0 b 0 dup 0
+ ++++ bulk_load_node data node  level 1 keys 1 cost 0 data_node_model->a 0 b 0 node->a 0 b 0 dup 0
+ ++++ bulk_load_node data node  level 1 keys 1 cost 0 data_node_model->a 0 b 0 node->a 0 b 0 dup 0
+ ++++ bulk_load_node data node  level 1 keys 1 cost 0 data_node_model->a 0 b 0 node->a 0 b 0 dup 0
+ $$$$ bulk_load_node model node level 0 num_children 4 a 0.666667 b -0
+ ==== After bulk load 
+ num_model_nodes 1 num_data_nodes 4 -->  [root node] a_ 0.666667 b_ -0
+ level 1 num_keys 1 bitmap 1 capacity 2 size 40 first_key 0 first_pos 0 last_key 0 last_pos 0 a 0 b 0
+ level 1 num_keys 1 bitmap 1 capacity 2 size 40 first_key 2 first_pos 0 last_key 2 last_pos 0 a 0 b 0
+ level 1 num_keys 1 bitmap 1 capacity 2 size 40 first_key 4 first_pos 0 last_key 4 last_pos 0 a 0 b 0
+ level 1 num_keys 1 bitmap 1 capacity 2 size 40 first_key 6 first_pos 0 last_key 6 last_pos 0 a 0 b 0
+
+ ---> Check if node is full  num_keys_1 expansion_threshold_2
+ ==== ready for insert key 1
+ ffuu exponential_search_upper_bound key 1 m 0 bound 1 l 0 r 1
+ ==== exponential_search_upper_bound key 1 predicted_pos 0 pos 1
+ ==== insert_element_at  key 1 insertion_position 1
+ ==== try insert  key 1 fail 0 insert_pos 1
+ ==== After inserting 1 keys: 1
+ num_model_nodes 1 num_data_nodes 4 -->  [root node] a_ 0.666667 b_ -0
+ level 1 num_keys 2 bitmap 3 capacity 2 size 40 first_key 0 first_pos 0 last_key 1 last_pos 1 a 0 b 0
+ level 1 num_keys 1 bitmap 1 capacity 2 size 40 first_key 2 first_pos 0 last_key 2 last_pos 0 a 0 b 0
+ level 1 num_keys 1 bitmap 1 capacity 2 size 40 first_key 4 first_pos 0 last_key 4 last_pos 0 a 0 b 0
+ level 1 num_keys 1 bitmap 1 capacity 2 size 40 first_key 6 first_pos 0 last_key 6 last_pos 0 a 0 b 0
+
+ ---> Check if node is full  num_keys_1 expansion_threshold_2
+ ==== ready for insert key 2
+ ffuu exponential_search_upper_bound key 2 m 0 bound 1 l 0 r 1
+ ==== exponential_search_upper_bound key 2 predicted_pos 0 pos 1
+ ==== insert_element_at  key 2 insertion_position 1
+ ==== try insert  key 2 fail 0 insert_pos 1
+ ==== After inserting 2 keys: 2
+ num_model_nodes 1 num_data_nodes 4 -->  [root node] a_ 0.666667 b_ -0
+ level 1 num_keys 2 bitmap 3 capacity 2 size 40 first_key 0 first_pos 0 last_key 1 last_pos 1 a 0 b 0
+ level 1 num_keys 2 bitmap 3 capacity 2 size 40 first_key 2 first_pos 0 last_key 2 last_pos 1 a 0 b 0
+ level 1 num_keys 1 bitmap 1 capacity 2 size 40 first_key 4 first_pos 0 last_key 4 last_pos 0 a 0 b 0
+ level 1 num_keys 1 bitmap 1 capacity 2 size 40 first_key 6 first_pos 0 last_key 6 last_pos 0 a 0 b 0
+
+ ---> Check if node is full  num_keys_1 expansion_threshold_2
+ ==== ready for insert key 3
+ ffuu exponential_search_upper_bound key 3 m 0 bound 1 l 0 r 0
+ ==== exponential_search_upper_bound key 3 predicted_pos 0 pos 0
+ ==== insert_using_shifts  key 3 pos 0 gap_pos 1
+ ==== insert_using_shifts  key 3 insertion_position 0
+ ==== try insert  key 3 fail 0 insert_pos 0
+ ==== After inserting 3 keys: 3
+ num_model_nodes 1 num_data_nodes 4 -->  [root node] a_ 0.666667 b_ -0
+ level 1 num_keys 2 bitmap 3 capacity 2 size 40 first_key 0 first_pos 0 last_key 1 last_pos 1 a 0 b 0
+ level 1 num_keys 2 bitmap 3 capacity 2 size 40 first_key 2 first_pos 0 last_key 2 last_pos 1 a 0 b 0
+ level 1 num_keys 2 bitmap 3 capacity 2 size 40 first_key 3 first_pos 0 last_key 4 last_pos 1 a 0 b 0
+ level 1 num_keys 1 bitmap 1 capacity 2 size 40 first_key 6 first_pos 0 last_key 6 last_pos 0 a 0 b 0
+
+ ---> Check if node is full  num_keys_2 expansion_threshold_2
+ ==== ready for resize
+**** Resize: target_density 0.6, force_retrain 0, keep_left 0, keep_right 1
+ ==== Before resize update expansion_threshold_  expansion_threshold_2 data_capacity_3 num_keys_2
+ ==== After resize update expansion_threshold_  expansion_threshold_3 data_capacity_3 num_keys_2
+ ==== ready for insert key 4
+ ffuu exponential_search_upper_bound key 4 m 2 bound 1 l 2 r 3
+ ==== exponential_search_upper_bound key 4 predicted_pos 2 pos 3
+ ==== insert_using_shifts  key 4 pos 3 gap_pos 0
+ ==== insert_using_shifts  key 4 insertion_position 2
+ ==== try insert  key 4 fail 0 insert_pos 2
+ ==== After inserting 4 keys: 4
+ num_model_nodes 1 num_data_nodes 4 -->  [root node] a_ 0.666667 b_ -0
+ level 1 num_keys 2 bitmap 3 capacity 2 size 40 first_key 0 first_pos 0 last_key 1 last_pos 1 a 0 b 0
+ level 1 num_keys 2 bitmap 3 capacity 2 size 40 first_key 2 first_pos 0 last_key 2 last_pos 1 a 0 b 0
+ level 1 num_keys 3 bitmap 7 capacity 3 size 56 first_key 3 first_pos 0 last_key 4 last_pos 2 a 1 b -2
+ level 1 num_keys 1 bitmap 1 capacity 2 size 40 first_key 6 first_pos 0 last_key 6 last_pos 0 a 0 b 0
+

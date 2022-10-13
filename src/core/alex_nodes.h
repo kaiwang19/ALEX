@@ -12,6 +12,18 @@
 
 #include "alex_base.h"
 
+// #define MVALEX_MAX_SIZE 1 << 9         // The capacity of a node
+// #define MVALEX_MAX_SIZE 1 << 8         // The capacity of a node
+#define MVALEX_MAX_SIZE 1 << 24         // The capacity of a node
+
+
+// *** Print the message.
+#define ALEX_PRINT(msg)                std::cout << msg <<std::endl;
+// #define ALEX_PRINT(msg)                ;
+
+// *** Assertion to test if an expression is true, otherwise report the message.
+#define ALEX_ASSERT(expr, msg)         assert((expr) && (msg));
+
 // Whether we store key and payload arrays separately in data nodes
 // By default, we store them separately
 #define ALEX_DATA_NODE_SEP_ARRAYS 1
@@ -62,6 +74,20 @@ class AlexNode {
 
   // The size in bytes of all member variables in this class
   virtual long long node_size() const = 0;
+
+  inline std::string get_str(bool with_cost=false) const
+  {
+    std::string node_type_str = "Alexnode";
+    node_type_str += (is_leaf_) ? "(DN):" : "(MN):";
+    node_type_str += " level_" + std::to_string(level_);
+    node_type_str += " dup_" + std::to_string(duplication_factor_);
+    node_type_str += " " + model_.model_str();
+    if(with_cost)
+    {
+      node_type_str += " cost_" + std::to_string(cost_);
+    }
+    return node_type_str;
+  }
 };
 
 template <class T, class P, class Alloc = std::allocator<std::pair<T, P>>>
@@ -135,7 +161,15 @@ class AlexModelNode : public AlexNode<T, P> {
     pointer_allocator().deallocate(children_, num_children_);
     children_ = new_children;
     num_children_ = num_new_children;
+    std::cout << " **** Internal Node expansion: expansion_factor " << expansion_factor 
+          << ", this->model_.a_ " << this->model_.a_ 
+          << ", this->model_.b_ " << this->model_.b_
+          << std::endl;
     this->model_.expand(expansion_factor);
+    std::cout << " **** After Internal Node expansion: expansion_factor " << expansion_factor 
+          << ", this->model_.a_ " << this->model_.a_ 
+          << ", this->model_.b_ " << this->model_.b_
+          << std::endl;
     return expansion_factor;
   }
 
@@ -147,6 +181,14 @@ class AlexModelNode : public AlexNode<T, P> {
     long long size = sizeof(self_type);
     size += num_children_ * sizeof(AlexNode<T, P>*);  // pointers to children
     return size;
+  }
+
+  inline void print() const
+  {
+    std::string node_type_str = this->get_str();
+    node_type_str += " num_children_ " + std::to_string(num_children_);
+
+    ALEX_PRINT(node_type_str);
   }
 
   // Helpful for debugging
@@ -315,8 +357,7 @@ class AlexDataNode : public AlexNode<T, P> {
 
 #if ALEX_DATA_NODE_SEP_ARRAYS
   T* key_slots_ = nullptr;  // holds keys
-  P* payload_slots_ =
-      nullptr;  // holds payloads, must be same size as key_slots
+  P* payload_slots_ = nullptr;  // holds payloads, must be same size as key_slots
 #else
   V* data_slots_ = nullptr;  // holds key-payload pairs
 #endif
@@ -342,8 +383,10 @@ class AlexDataNode : public AlexNode<T, P> {
   double expansion_threshold_ = 1;  // expand after m_num_keys is >= this number
   double contraction_threshold_ =
       0;  // contract after m_num_keys is < this number
+  // static constexpr int kDefaultMaxDataNodeBytes_ =
+  //     1 << 24;  // by default, maximum data node size is 16MB
   static constexpr int kDefaultMaxDataNodeBytes_ =
-      1 << 24;  // by default, maximum data node size is 16MB
+      MVALEX_MAX_SIZE;  // by default, maximum data node size is 16MB
   int max_slots_ =
       kDefaultMaxDataNodeBytes_ /
       sizeof(V);  // cannot expand beyond this number of key/data slots
@@ -472,10 +515,18 @@ class AlexDataNode : public AlexNode<T, P> {
   }
 
   // Check whether the position corresponds to a key (as opposed to a gap)
+  // 2^6 = 64 bit, uint64_t 
   inline bool check_exists(int pos) const {
     assert(pos >= 0 && pos < data_capacity_);
     int bitmap_pos = pos >> 6;
     int bit_pos = pos - (bitmap_pos << 6);
+    // std::cout << "(check_exists"
+    //       << " pos " << pos
+    //       << " bitmap_pos " << bitmap_pos
+    //       << " bit_pos " << bit_pos 
+    //       << " bitmap_[bitmap_pos] " << bitmap_[bitmap_pos] 
+    //       << ")"
+    //       << std::endl;
     return static_cast<bool>(bitmap_[bitmap_pos] & (1ULL << bit_pos));
   }
 
@@ -532,6 +583,27 @@ class AlexDataNode : public AlexNode<T, P> {
       if (check_exists(i)) return i;
     }
     return 0;
+  }
+
+  inline void print(bool full=false) const
+  {
+    std::string node_type_str = this->get_str(full);
+    node_type_str += " data_capacity_" + std::to_string(data_capacity_);
+    node_type_str += " num_keys_" + std::to_string(num_keys_);
+    node_type_str += " keyrange [" + std::to_string(min_key_) +"-"+std::to_string(max_key_) + "]";
+    if(full)
+    {
+      node_type_str += "\n";
+      node_type_str += " bitmap_" + std::to_string(*this->bitmap_);
+      node_type_str += " first_key_" + std::to_string(first_key());
+      node_type_str += " last_key_" + std::to_string(last_key());
+      node_type_str += " first_pos_" + std::to_string(first_pos());
+      node_type_str += " last_pos_" + std::to_string(last_pos());
+      node_type_str += " max_slots_" + std::to_string(max_slots_);
+      node_type_str += " expansion_threshold_" + std::to_string(expansion_threshold_);
+      node_type_str += " contraction_threshold_" + std::to_string(contraction_threshold_);
+    }
+    ALEX_PRINT(node_type_str);
   }
 
   // Number of keys between positions left and right (exclusive) in
@@ -747,6 +819,13 @@ class AlexDataNode : public AlexNode<T, P> {
     double cost =
         kExpSearchIterationsWeight * expected_avg_exp_search_iterations_ +
         kShiftsWeight * expected_avg_shifts_ * frac_inserts;
+
+    // std::cout << "compute_expected_cost " 
+    //     << " avg_exp_search " << expected_avg_exp_search_iterations_
+    //     << " avg_shifts " << expected_avg_shifts_
+    //     << " cost " << cost
+    //     << std::endl;
+
     return cost;
   }
 
@@ -803,6 +882,12 @@ class AlexDataNode : public AlexNode<T, P> {
       stats->num_search_iterations = expected_avg_exp_search_iterations;
       stats->num_shifts = expected_avg_shifts;
     }
+
+    // std::cout << "compute_expected_cost " 
+    //     << " avg_exp_search " << expected_avg_exp_search_iterations
+    //     << " avg_shifts " << expected_avg_shifts
+    //     << " cost " << cost
+    //     << std::endl;
 
     return cost;
   }
@@ -1369,6 +1454,8 @@ class AlexDataNode : public AlexNode<T, P> {
     // If the number of keys is sufficiently small, we do not sample
     if (num_keys <= sample_size_lower_bound * sample_size_multiplier) {
       build_model(values, num_keys, model, false);
+      std::cout << " build_model with " << num_keys << " keys. "
+            << std::endl; 
       return;
     }
 
@@ -1388,7 +1475,7 @@ class AlexDataNode : public AlexNode<T, P> {
     builder.build();
     double prev_a = model->a_;
     double prev_b = model->b_;
-    if (verbose) {
+    if (verbose) { // verbose - too long and uncessary
       std::cout << "Build index, sample size: " << num_keys / step_size
                 << " (a, b): (" << prev_a << ", " << prev_b << ")" << std::endl;
     }
@@ -1497,6 +1584,13 @@ class AlexDataNode : public AlexNode<T, P> {
 
     // insert to the right of duplicate keys
     int pos = exponential_search_upper_bound(predicted_pos, key);
+
+      // std::cout << " ==== exponential_search_upper_bound"
+      //       << " key " << key
+      //       << " predicted_pos " << predicted_pos
+      //       << " pos " << pos
+      //       << std::endl;
+
     if (predicted_pos <= pos || check_exists(pos)) {
       return {pos, pos};
     } else {
@@ -1575,6 +1669,15 @@ class AlexDataNode : public AlexNode<T, P> {
       l = m + bound / 2;
       r = m + std::min<int>(bound, size);
     }
+    
+  // std::cout << " ffuu exponential_search_upper_bound" 
+  //           << " key " << key
+  //           << " m " << m
+  //           << " bound " << bound
+  //           << " l " << l
+  //           << " r " << r
+  //           << std::endl;
+
     return binary_search_upper_bound(l, r, key);
   }
 
@@ -1631,6 +1734,15 @@ class AlexDataNode : public AlexNode<T, P> {
       l = m + bound / 2;
       r = m + std::min<int>(bound, size);
     }
+
+  // std::cout << " ffll exponential_search_lower_bound " 
+  //           << " key " << key
+  //           << " m " << m
+  //           << " bound " << bound
+  //           << " l " << l
+  //           << " r " << r
+  //           << std::endl;
+
     return binary_search_lower_bound(l, r, key);
   }
 
@@ -1678,12 +1790,18 @@ class AlexDataNode : public AlexNode<T, P> {
   // already-existing key.
   // -1 if no insertion.
   std::pair<int, int> insert(const T& key, const P& payload) {
+    
     // Periodically check for catastrophe
     if (num_inserts_ % 64 == 0 && catastrophic_cost()) {
       return {2, -1};
     }
 
     // Check if node is full (based on expansion_threshold)
+    std::cout << " ---> Check if node is full "
+          << " num_keys_" << num_keys_
+          << " expansion_threshold_" << expansion_threshold_
+          << std::endl;
+          
     if (num_keys_ >= expansion_threshold_) {
       if (significant_cost_deviation()) {
         return {1, -1};
@@ -1697,9 +1815,16 @@ class AlexDataNode : public AlexNode<T, P> {
       // Expand
       bool keep_left = is_append_mostly_right();
       bool keep_right = is_append_mostly_left();
+
+      // std::cout << " ==== ready for resize"
+      //       << std::endl;
+
       resize(kMinDensity_, false, keep_left, keep_right);
       num_resizes_++;
     }
+    
+    // std::cout << " ==== ready for insert key " << key
+    //         << std::endl;
 
     // Insert
     std::pair<int, int> positions = find_insert_position(key);
@@ -1712,9 +1837,17 @@ class AlexDataNode : public AlexNode<T, P> {
     if (insertion_position < data_capacity_ &&
         !check_exists(insertion_position)) {
       insert_element_at(key, payload, insertion_position);
+      //     std::cout << " ==== insert_element_at "
+      //       << " key " << key
+      //       << " insertion_position " << insertion_position
+      //       << std::endl;
     } else {
       insertion_position =
           insert_using_shifts(key, payload, insertion_position);
+          // std::cout << " ==== insert_using_shifts "
+          //   << " key " << key
+          //   << " insertion_position " << insertion_position
+          //   << std::endl;
     }
 
     // Update stats
@@ -1738,6 +1871,11 @@ class AlexDataNode : public AlexNode<T, P> {
       return;
     }
 
+    // std::cout << "**** Resize: target_density " << target_density 
+    //       << ", force_retrain " << force_retrain 
+    //       << ", keep_left " << keep_left 
+    //       << ", keep_right " << keep_right 
+    //       << std::endl;
     int new_data_capacity =
         std::max(static_cast<int>(num_keys_ / target_density), num_keys_ + 1);
     auto new_bitmap_size =
@@ -1753,6 +1891,12 @@ class AlexDataNode : public AlexNode<T, P> {
     V* new_data_slots = new (value_allocator().allocate(new_data_capacity))
         V[new_data_capacity];
 #endif
+
+    // std::cout << "model_.a_ " << this->model_.a_ 
+    //       << " model_.b_ " << this->model_.b_
+    //       << " num_keys_ " << num_keys_
+    //       << " data_capacity_ " << data_capacity_
+    //       << std::endl;
 
     // Retrain model if the number of keys is sufficiently small (under 50)
     if (num_keys_ < 50 || force_retrain) {
@@ -1778,6 +1922,13 @@ class AlexDataNode : public AlexNode<T, P> {
                             data_capacity_);
       }
     }
+
+    // std::cout << "After possible train: model_.a_ " << this->model_.a_ 
+    //       << " model_.b_ " << this->model_.b_
+    //       << " num_keys_ " << num_keys_
+    //       << " data_capacity_ " << data_capacity_
+    //       << std::endl;
+
 
     int last_position = -1;
     int keys_remaining = num_keys_;
@@ -1857,10 +2008,24 @@ class AlexDataNode : public AlexNode<T, P> {
 #endif
     bitmap_ = new_bitmap;
 
+
+    // std::cout << " ==== Before resize update expansion_threshold_ "
+    //       << " expansion_threshold_" << expansion_threshold_
+    //       << " data_capacity_" << data_capacity_
+    //       << " num_keys_" << num_keys_
+    //       << std::endl;
+
     expansion_threshold_ =
         std::min(std::max(data_capacity_ * kMaxDensity_,
                           static_cast<double>(num_keys_ + 1)),
                  static_cast<double>(data_capacity_));
+
+    // std::cout << " ==== After resize update expansion_threshold_ "
+    //       << " expansion_threshold_" << expansion_threshold_
+    //       << " data_capacity_" << data_capacity_
+    //       << " num_keys_" << num_keys_
+    //       << std::endl;
+
     contraction_threshold_ = data_capacity_ * kMinDensity_;
   }
 
@@ -1898,6 +2063,12 @@ class AlexDataNode : public AlexNode<T, P> {
   int insert_using_shifts(const T& key, P payload, int pos) {
     // Find the closest gap
     int gap_pos = closest_gap(pos);
+
+    std::cout << " ==== insert_using_shifts "
+            << " key " << key
+            << " pos " << pos
+            << " gap_pos " << gap_pos
+            << std::endl;
     set_bit(gap_pos);
     if (gap_pos >= pos) {
       for (int i = gap_pos; i > pos; i--) {

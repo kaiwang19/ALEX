@@ -1,0 +1,10 @@
+ check max_data_node_slots 4 max_fanout 8 KEY_TYPE 8 PAYLOAD_TYPE 8
+Build temporary rough root model -> root_node_->model_.a_ 1 root_node_->model_.b_ -0
+ build_model with 2 keys. 
+compute_expected_cost  avg_exp_search 0 avg_shifts 0.5 cost 0.25
+Compute cost of root node 0.25
+ ++++ bulk_load_node data node  level 0 keys 2 cost 0.25 data_node_model->a 1 b 0 node->a 1.5 b 0 dup 0
+ ==== After bulk load 
+ num_model_nodes 0 num_data_nodes 1 -->  [root node] a_ 1.5 b_ 0
+ level 0 num_keys 2 bitmap 3 capacity 3 size 56 first_key 0 first_pos 0 last_key 1 last_pos 1 a 1.5 b 0
+
