@@ -224,6 +224,7 @@ class Alex {
         data_node_type(key_less_, allocator_);
     empty_data_node->bulk_load(nullptr, 0);
     root_node_ = empty_data_node;
+    stats_.num_data_nodes++;
     create_superroot();
   }
 
@@ -234,6 +235,7 @@ class Alex {
         data_node_type(key_less_, allocator_);
     empty_data_node->bulk_load(nullptr, 0);
     root_node_ = empty_data_node;
+    stats_.num_data_nodes++;
     create_superroot();
   }
 
@@ -243,6 +245,7 @@ class Alex {
         data_node_type(key_less_, allocator_);
     empty_data_node->bulk_load(nullptr, 0);
     root_node_ = empty_data_node;
+    stats_.num_data_nodes++;
     create_superroot();
   }
 
@@ -825,7 +828,7 @@ class Alex {
     // Automatically convert to data node when it is impossible to be better
     // than current cost
     if (num_keys <= derived_params_.max_data_node_slots *
-                        data_node_type::kMinDensity_ &&
+                        data_node_type::kInitDensity_ &&
         (node->cost_ < kNodeLookupsWeight || node->model_.a_ == 0)) {
       stats_.num_data_nodes++;
       auto data_node = new (data_node_allocator().allocate(1))
@@ -857,7 +860,7 @@ class Alex {
     std::pair<int, double> best_fanout_stats;
     if (experimental_params_.fanout_selection_method == 0) {
       int max_data_node_keys = static_cast<int>(
-          derived_params_.max_data_node_slots * data_node_type::kMinDensity_);
+          derived_params_.max_data_node_slots * data_node_type::kInitDensity_);
       best_fanout_stats = fanout_tree::find_best_fanout_bottom_up<T, P>(
           values, num_keys, node, total_keys, used_fanout_tree_nodes,
           derived_params_.max_fanout, max_data_node_keys,
@@ -880,7 +883,7 @@ class Alex {
     // Decide whether this node should be a model node or data node
     if (best_fanout_tree_cost < node->cost_ ||
         num_keys > derived_params_.max_data_node_slots *
-                       data_node_type::kMinDensity_) {
+                       data_node_type::kInitDensity_) {
       // Convert to model node based on the output of the fanout tree
       stats_.num_model_nodes++;
       auto model_node = new (model_node_allocator().allocate(1))
@@ -897,7 +900,7 @@ class Alex {
             1;
         used_fanout_tree_nodes.clear();
         int max_data_node_keys = static_cast<int>(
-            derived_params_.max_data_node_slots * data_node_type::kMinDensity_);
+            derived_params_.max_data_node_slots * data_node_type::kInitDensity_);
         fanout_tree::compute_level<T, P>(
             values, num_keys, node, total_keys, used_fanout_tree_nodes,
             best_fanout_tree_depth, max_data_node_keys,
@@ -1138,18 +1141,20 @@ class Alex {
   typename self_type::Iterator find_last_no_greater_than(const T& key) {
     stats_.num_lookups++;
     data_node_type* leaf = get_leaf(key);
-    int idx = leaf->upper_bound(key) - 1;
-    if (idx == -1) {
-      if (leaf->prev_leaf_) {
-        // Edge case: need to check previous data node
-        data_node_type* prev_leaf = leaf->prev_leaf_;
-        int last_pos = prev_leaf->last_pos();
-        return Iterator(prev_leaf, last_pos);
-      } else {
+    const int idx = leaf->upper_bound(key) - 1;
+    if (idx >= 0) {
+      return Iterator(leaf, idx);
+    }
+
+    // Edge case: need to check previous data node(s)
+    while (true) {
+      if (leaf->prev_leaf_ == nullptr) {
         return Iterator(leaf, 0);
       }
-    } else {
-      return Iterator(leaf, idx);
+      leaf = leaf->prev_leaf_;
+      if (leaf->num_keys_ > 0) {
+        return Iterator(leaf, leaf->last_pos());
+      }
     }
   }
 
@@ -1159,17 +1164,20 @@ class Alex {
   P* get_payload_last_no_greater_than(const T& key) {
     stats_.num_lookups++;
     data_node_type* leaf = get_leaf(key);
-    int idx = leaf->upper_bound(key) - 1;
-    if (idx == -1) {
-      if (leaf->prev_leaf_) {
-        // Edge case: need to check previous data node
-        data_node_type* prev_leaf = leaf->prev_leaf_;
-        return &(prev_leaf->get_payload(prev_leaf->last_pos()));
-      } else {
+    const int idx = leaf->upper_bound(key) - 1;
+    if (idx >= 0) {
+      return &(leaf->get_payload(idx));
+    }
+
+    // Edge case: Need to check previous data node(s)
+    while (true) {
+      if (leaf->prev_leaf_ == nullptr) {
         return &(leaf->get_payload(leaf->first_pos()));
       }
-    } else {
-      return &(leaf->get_payload(idx));
+      leaf = leaf->prev_leaf_;
+      if (leaf->num_keys_ > 0) {
+        return &(leaf->get_payload(leaf->last_pos()));
+      }
     }
   }
 
@@ -1738,7 +1746,7 @@ class Alex {
   // newly created model node.
   model_node_type* split_downwards(
       model_node_type* parent, int bucketID, int fanout_tree_depth,
-      const std::vector<fanout_tree::FTNode>& used_fanout_tree_nodes,
+      std::vector<fanout_tree::FTNode>& used_fanout_tree_nodes,
       bool reuse_model) {
     auto leaf = static_cast<data_node_type*>(parent->children_[bucketID]);
     stats_.num_downward_splits++;
@@ -1800,10 +1808,10 @@ class Alex {
 
   // Splits data node sideways in the manner determined by the fanout tree.
   // If no fanout tree is provided, then splits sideways in two.
-  void split_sideways(
-      model_node_type* parent, int bucketID, int fanout_tree_depth,
-      const std::vector<fanout_tree::FTNode>& used_fanout_tree_nodes,
-      bool reuse_model) {
+  void split_sideways(model_node_type* parent, int bucketID,
+                      int fanout_tree_depth,
+                      std::vector<fanout_tree::FTNode>& used_fanout_tree_nodes,
+                      bool reuse_model) {
     auto leaf = static_cast<data_node_type*>(parent->children_[bucketID]);
     stats_.num_sideways_splits++;
     stats_.num_sideways_split_keys += leaf->num_keys_;
@@ -1882,6 +1890,15 @@ class Alex {
 
     int right_boundary = old_node->lower_bound(
         (mid_bucketID - parent->model_.b_) / parent->model_.a_);
+    // Account for off-by-one errors due to floating-point precision issues.
+    while (right_boundary < old_node->data_capacity_ &&
+           old_node->get_key(right_boundary) != data_node_type::kEndSentinel_ &&
+           parent->model_.predict(old_node->get_key(right_boundary)) <
+               mid_bucketID) {
+      right_boundary = std::min(
+          old_node->get_next_filled_position(right_boundary, false) + 1,
+          old_node->data_capacity_);
+    }
     data_node_type* left_leaf = bulk_load_leaf_node_from_existing(
         old_node, 0, right_boundary, true, nullptr, reuse_model,
         append_mostly_right && start_bucketID <= appending_right_bucketID &&
@@ -1919,7 +1936,7 @@ class Alex {
   void create_new_data_nodes(
       const data_node_type* old_node, model_node_type* parent,
       int fanout_tree_depth,
-      const std::vector<fanout_tree::FTNode>& used_fanout_tree_nodes,
+      std::vector<fanout_tree::FTNode>& used_fanout_tree_nodes,
       int start_bucketID = 0, int extra_duplication_factor = 0) {
     bool append_mostly_right = old_node->is_append_mostly_right();
     int appending_right_bucketID = std::min<int>(
@@ -1934,7 +1951,13 @@ class Alex {
     int cur = start_bucketID;  // first bucket with same child
     data_node_type* prev_leaf =
         old_node->prev_leaf_;  // used for linking the new data nodes
-    for (const fanout_tree::FTNode& tree_node : used_fanout_tree_nodes) {
+    int left_boundary = 0;
+    int right_boundary = 0;
+    // Keys may be re-assigned to an adjacent fanout tree node due to off-by-one
+    // errors
+    int num_reassigned_keys = 0;
+    for (fanout_tree::FTNode& tree_node : used_fanout_tree_nodes) {
+      left_boundary = right_boundary;
       auto duplication_factor = static_cast<uint8_t>(
           fanout_tree_depth - tree_node.level + extra_duplication_factor);
       int child_node_repeats = 1 << duplication_factor;
@@ -1942,9 +1965,24 @@ class Alex {
                        appending_right_bucketID < cur + child_node_repeats;
       bool keep_right = append_mostly_left && cur <= appending_left_bucketID &&
                         appending_left_bucketID < cur + child_node_repeats;
+      right_boundary = tree_node.right_boundary;
+      // Account for off-by-one errors due to floating-point precision issues.
+      tree_node.num_keys -= num_reassigned_keys;
+      num_reassigned_keys = 0;
+      while (right_boundary < old_node->data_capacity_ &&
+             old_node->get_key(right_boundary) !=
+                 data_node_type::kEndSentinel_ &&
+             parent->model_.predict(old_node->get_key(right_boundary)) <
+                 cur + child_node_repeats) {
+        num_reassigned_keys++;
+        right_boundary = std::min(
+            old_node->get_next_filled_position(right_boundary, false) + 1,
+            old_node->data_capacity_);
+      }
+      tree_node.num_keys += num_reassigned_keys;
       data_node_type* child_node = bulk_load_leaf_node_from_existing(
-          old_node, tree_node.left_boundary, tree_node.right_boundary, false,
-          &tree_node, false, keep_left, keep_right);
+          old_node, left_boundary, right_boundary, false, &tree_node, false,
+          keep_left, keep_right);
       child_node->level_ = static_cast<short>(parent->level_ + 1);
       child_node->cost_ = tree_node.cost;
       child_node->duplication_factor_ = duplication_factor;

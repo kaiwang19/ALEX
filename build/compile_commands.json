@@ -1,12 +1,17 @@
 [
 {
   "directory": "D:/Code/C++/ALEX/build",
-  "command": "D:\\program\\mingw-w64\\mingw64\\bin\\g++.exe  @CMakeFiles/test.dir/includes_CXX.rsp -g -O3 -march=native -Wall -Wextra -g -std=gnu++14 -o CMakeFiles\\test.dir\\src\\examples\\test.cpp.obj -c D:\\Code\\C++\\ALEX\\src\\examples\\test.cpp",
+  "command": "D:\\program\\mingw-w64\\mingw64\\bin\\g++.exe -DDEBUG @CMakeFiles/test_alex.dir/includes_CXX.rsp -g -O3 -march=native -Wall -Wextra -g -std=gnu++14 -o CMakeFiles\\test_alex.dir\\test\\unittest_main.cpp.obj -c D:\\Code\\C++\\ALEX\\test\\unittest_main.cpp",
+  "file": "D:/Code/C++/ALEX/test/unittest_main.cpp"
+},
+{
+  "directory": "D:/Code/C++/ALEX/build",
+  "command": "D:\\program\\mingw-w64\\mingw64\\bin\\g++.exe -DDEBUG @CMakeFiles/demo.dir/includes_CXX.rsp -g -O3 -march=native -Wall -Wextra -g -std=gnu++14 -o CMakeFiles\\demo.dir\\src\\examples\\test.cpp.obj -c D:\\Code\\C++\\ALEX\\src\\examples\\test.cpp",
   "file": "D:/Code/C++/ALEX/src/examples/test.cpp"
 },
 {
   "directory": "D:/Code/C++/ALEX/build",
-  "command": "D:\\program\\mingw-w64\\mingw64\\bin\\g++.exe  @CMakeFiles/example_int.dir/includes_CXX.rsp -g -O3 -march=native -Wall -Wextra -g -std=gnu++14 -o CMakeFiles\\example_int.dir\\src\\examples\\example_int.cpp.obj -c D:\\Code\\C++\\ALEX\\src\\examples\\example_int.cpp",
+  "command": "D:\\program\\mingw-w64\\mingw64\\bin\\g++.exe -DDEBUG @CMakeFiles/example_int.dir/includes_CXX.rsp -g -O3 -march=native -Wall -Wextra -g -std=gnu++14 -o CMakeFiles\\example_int.dir\\src\\examples\\example_int.cpp.obj -c D:\\Code\\C++\\ALEX\\src\\examples\\example_int.cpp",
   "file": "D:/Code/C++/ALEX/src/examples/example_int.cpp"
 }
 ]

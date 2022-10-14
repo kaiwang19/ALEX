@@ -85,6 +85,17 @@ rebuild_cache/fast: rebuild_cache
 
 .PHONY : rebuild_cache/fast
 
+# Special rule for the target test
+test:
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Running tests..."
+	"C:\Program Files\CMake\bin\ctest.exe" --force-new-ctest-process $(ARGS)
+.PHONY : test
+
+# Special rule for the target test
+test/fast: test
+
+.PHONY : test/fast
+
 # Special rule for the target edit_cache
 edit_cache:
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Running CMake cache editor..."
@@ -129,17 +140,30 @@ depend:
 .PHONY : depend
 
 #=============================================================================
-# Target rules for targets named test
+# Target rules for targets named test_alex
 
 # Build rule for target.
-test: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\Makefile2 test
-.PHONY : test
+test_alex: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\Makefile2 test_alex
+.PHONY : test_alex
 
 # fast build rule for target.
-test/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\test.dir\build.make CMakeFiles/test.dir/build
-.PHONY : test/fast
+test_alex/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\test_alex.dir\build.make CMakeFiles/test_alex.dir/build
+.PHONY : test_alex/fast
+
+#=============================================================================
+# Target rules for targets named demo
+
+# Build rule for target.
+demo: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\Makefile2 demo
+.PHONY : demo
+
+# fast build rule for target.
+demo/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\demo.dir\build.make CMakeFiles/demo.dir/build
+.PHONY : demo/fast
 
 #=============================================================================
 # Target rules for targets named example_int
@@ -187,7 +211,7 @@ src/examples/test.obj: src/examples/test.cpp.obj
 
 # target to build an object file
 src/examples/test.cpp.obj:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\test.dir\build.make CMakeFiles/test.dir/src/examples/test.cpp.obj
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\demo.dir\build.make CMakeFiles/demo.dir/src/examples/test.cpp.obj
 .PHONY : src/examples/test.cpp.obj
 
 src/examples/test.i: src/examples/test.cpp.i
@@ -196,7 +220,7 @@ src/examples/test.i: src/examples/test.cpp.i
 
 # target to preprocess a source file
 src/examples/test.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\test.dir\build.make CMakeFiles/test.dir/src/examples/test.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\demo.dir\build.make CMakeFiles/demo.dir/src/examples/test.cpp.i
 .PHONY : src/examples/test.cpp.i
 
 src/examples/test.s: src/examples/test.cpp.s
@@ -205,8 +229,35 @@ src/examples/test.s: src/examples/test.cpp.s
 
 # target to generate assembly for a file
 src/examples/test.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\test.dir\build.make CMakeFiles/test.dir/src/examples/test.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\demo.dir\build.make CMakeFiles/demo.dir/src/examples/test.cpp.s
 .PHONY : src/examples/test.cpp.s
+
+test/unittest_main.obj: test/unittest_main.cpp.obj
+
+.PHONY : test/unittest_main.obj
+
+# target to build an object file
+test/unittest_main.cpp.obj:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\test_alex.dir\build.make CMakeFiles/test_alex.dir/test/unittest_main.cpp.obj
+.PHONY : test/unittest_main.cpp.obj
+
+test/unittest_main.i: test/unittest_main.cpp.i
+
+.PHONY : test/unittest_main.i
+
+# target to preprocess a source file
+test/unittest_main.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\test_alex.dir\build.make CMakeFiles/test_alex.dir/test/unittest_main.cpp.i
+.PHONY : test/unittest_main.cpp.i
+
+test/unittest_main.s: test/unittest_main.cpp.s
+
+.PHONY : test/unittest_main.s
+
+# target to generate assembly for a file
+test/unittest_main.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\test_alex.dir\build.make CMakeFiles/test_alex.dir/test/unittest_main.cpp.s
+.PHONY : test/unittest_main.cpp.s
 
 # Help Target
 help:
@@ -216,14 +267,19 @@ help:
 	@echo ... depend
 	@echo ... edit_cache
 	@echo ... rebuild_cache
-	@echo ... example_int
 	@echo ... test
+	@echo ... demo
+	@echo ... example_int
+	@echo ... test_alex
 	@echo ... src/examples/example_int.obj
 	@echo ... src/examples/example_int.i
 	@echo ... src/examples/example_int.s
 	@echo ... src/examples/test.obj
 	@echo ... src/examples/test.i
 	@echo ... src/examples/test.s
+	@echo ... test/unittest_main.obj
+	@echo ... test/unittest_main.i
+	@echo ... test/unittest_main.s
 .PHONY : help
 
 

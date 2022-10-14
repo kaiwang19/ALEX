@@ -425,7 +425,7 @@ class CPUID {
 };
 
 // https://en.wikipedia.org/wiki/CPUID#EAX=7,_ECX=0:_Extended_Features
-bool cpu_supports_bmi() {
+inline bool cpu_supports_bmi() {
   return static_cast<bool>(CPUID(7, 0).EBX() & (1 << 3));
 }
 }

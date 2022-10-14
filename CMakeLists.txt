@@ -3,6 +3,11 @@ project(alex)
 
 set(CMAKE_CXX_STANDARD 14)
 
+# Define the macro ‘DEBUG' in the debug mode
+if(CMAKE_BUILD_TYPE STREQUAL Debug)        
+    ADD_DEFINITIONS(-DDEBUG)               
+endif()
+
 if(MSVC)
     set(CMAKE_CXX_FLAGS "/O2 /arch:AVX2 /W1 /EHsc")
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
@@ -16,7 +21,7 @@ endif()
 
 include_directories(src/core)
 
-add_executable(test src/examples/test.cpp)
+add_executable(demo src/examples/test.cpp)
 add_executable(example_int src/examples/example_int.cpp)
 # add_executable(example_double src/examples/example_double.cpp)
 
@@ -27,31 +32,15 @@ add_executable(example_int src/examples/example_int.cpp)
 
 
 
-# Download and unpack googletest at configure time
-# configure_file(CMakeLists.txt.in googletest-download/CMakeLists.txt)
-# execute_process(COMMAND ${CMAKE_COMMAND} -G "${CMAKE_GENERATOR}" .
-#         RESULT_VARIABLE result
-#         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/googletest-download )
-# if(result)
-#     message(FATAL_ERROR "CMake step for googletest failed: ${result}")
-# endif()
-# execute_process(COMMAND ${CMAKE_COMMAND} --build .
-#         RESULT_VARIABLE result
-#         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/googletest-download )
-# if(result)
-#     message(FATAL_ERROR "Build step for googletest failed: ${result}")
-# endif()
+set(DOCTEST_DOWNLOAD_DIR ${CMAKE_CURRENT_BINARY_DIR}/doctest)
+file(DOWNLOAD
+    https://raw.githubusercontent.com/onqtam/doctest/2.4.6/doctest/doctest.h
+    ${DOCTEST_DOWNLOAD_DIR}/doctest.h
+    EXPECTED_HASH SHA1=40728d2bed7f074e80cb095844820114e7d16ce0
+)
 
-# # Prevent overriding the parent project's compiler/linker
-# # settings on Windows
-# set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+add_executable(test_alex test/unittest_main.cpp)
+target_include_directories(test_alex PRIVATE ${DOCTEST_DOWNLOAD_DIR})
 
-# # Add googletest directly to our build. This defines
-# # the gtest and gtest_main targets.
-# add_subdirectory(${CMAKE_CURRENT_BINARY_DIR}/googletest-src
-#         ${CMAKE_CURRENT_BINARY_DIR}/googletest-build
-#         EXCLUDE_FROM_ALL)
-
-# add_executable(test_alex
-#         test/unittest_main.cpp)
-# target_link_libraries(test_alex gtest_main)
+enable_testing()
+add_test(test_alex test_alex)
